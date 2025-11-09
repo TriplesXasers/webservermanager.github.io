@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Web Server Manager - Kurulum
+title Web Server Manager - Kurulum & Başlatma
 
 echo.
 echo =====================================================
@@ -29,7 +29,7 @@ if %errorlevel% neq 0 (
     )
 )
 
-:: Python sürüm kontrolü (3.0.0+)
+:: Python sürüm kontrolü
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set pyver=%%i
 echo Python sürümü: %pyver%
 echo %pyver% | findstr /r "^3\.[0-9][0-9]*" >nul
@@ -39,17 +39,31 @@ if %errorlevel% neq 0 (
     exit
 )
 
-:: Gerekli Python paketleri
+:: venv oluştur
+if not exist "venv" (
+    echo Sanal ortam (venv) oluşturuluyor...
+    python -m venv venv
+    if %errorlevel% neq 0 (
+        echo [HATA] venv oluşturulamadı!
+        pause
+        exit
+    )
+)
+
+:: venv aktif et
+call venv\Scripts\activate.bat
+
+:: Gerekli paketler
 set packages=requests pyperclip psutil
 for %%p in (%packages%) do (
     python -c "import %%p" >nul 2>&1
     if %errorlevel% neq 0 (
         :install_%%p
         echo [EKLENTİ] %%p eksik!
-        set /p choice="%%p kurulsun mu? (Yoksa program çalışmaz) [E/H]: "
+        set /p choice="%%p kurulsun mu? [E/H]: "
         if /i "%choice%"=="E" (
             echo %%p kuruluyor...
-            python -m pip install %%p --quiet
+            pip install %%p --quiet
             if %errorlevel% neq 0 (
                 echo [HATA] %%p kurulamadı! Yeniden deneniyor...
                 goto install_%%p
@@ -63,53 +77,25 @@ for %%p in (%packages%) do (
     )
 )
 
-:: Node.js kontrolü
+:: Node.js ve localtunnel
 node --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [UYARI] Node.js bulunamadı!
-    set /p choice="Node.js kurulsun mu? (Yoksa localtunnel çalışmaz) [E/H]: "
+    set /p choice="Node.js kurulsun mu? [E/H]: "
     if /i "%choice%"=="E" (
-        echo Node.js indiriliyor...
-        powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.17.0/node-v20.17.0-x64.msi' -OutFile 'node-installer.msi'" >nul
-        echo Node.js kuruluyor...
-        msiexec /i node-installer.msi /quiet /norestart
-        del node-installer.msi
-        echo Node.js kuruldu. Lütfen terminali yeniden açın.
-        pause
-        exit
-    ) else (
-        echo Node.js olmadan devam ediliyor (localtunnel çalışmayacak).
+        powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.17.0/node-v20.17.0-x64.msi' -OutFile 'node.msi'" >nul
+        msiexec /i node.msi /quiet /norestart
+        del node.msi
+        echo Node.js kuruldu. Yeniden başlatın.
     )
-) else (
-    echo Node.js bulundu.
-)
-
-:: npm ve localtunnel
-npm --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [HATA] npm bulunamadı! Node.js yeniden kurulmalı.
-    pause
-    exit
 )
 
 npm list -g localtunnel >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [UYARI] localtunnel eksik!
     set /p choice="localtunnel kurulsun mu? [E/H]: "
     if /i "%choice%"=="E" (
-        :install_lt
-        echo localtunnel kuruluyor...
         npm install -g localtunnel --silent
-        if %errorlevel% neq 0 (
-            echo [HATA] localtunnel kurulamadı! Yeniden deneniyor...
-            goto install_lt
-        )
-        echo localtunnel başarıyla kuruldu.
-    ) else (
-        echo localtunnel olmadan devam ediliyor.
     )
-) else (
-    echo localtunnel bulundu.
 )
 
 :: sites klasörü
